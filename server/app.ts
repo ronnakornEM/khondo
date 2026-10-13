@@ -13,6 +13,7 @@ import { feed } from './routes/calendar-feed.js';
 import { dashboard } from './routes/dashboard.js';
 import { billing } from './routes/billing.js';
 import { uploads } from './routes/uploads.js';
+import { rates } from './routes/rates.js';
 
 export const app = new Hono().basePath('/api');
 
@@ -40,6 +41,7 @@ app.route('/', feed);
 app.route('/', dashboard);
 app.route('/', billing);
 app.route('/', uploads);
+app.route('/', rates);
 
 app.notFound((c) => c.json({ error: 'Not found', code: 'not_found' }, 404));
 

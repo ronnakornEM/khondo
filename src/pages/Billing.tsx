@@ -8,8 +8,10 @@ import { dateLabel } from '@/lib/format';
 import { PlanCards } from '@/components/PlanCards';
 import { Button, Card, ErrorNote, PageHeader } from '@/components/ui';
 import type { Agent } from '@shared/types';
+import { useT } from '@/lib/i18n';
 
 export function BillingPage() {
+  const t = useT();
   const { me, isPremium, refresh } = useAuth();
   const [params, setParams] = useSearchParams();
   const cfg = useQuery({ queryKey: ['billing-config'], queryFn: () => get<{ stripe: boolean; devUpgrade: boolean }>('/billing/config') });
@@ -38,34 +40,30 @@ export function BillingPage() {
 
   return (
     <>
-      <PageHeader title="Plan & billing" subtitle={isPremium ? `Premium${me!.agent.planRenewsAt ? ` · renews ${dateLabel(me!.agent.planRenewsAt)}` : ''}` : 'You’re on the Free plan.'} />
-      {status === 'success' && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">Thank you! Your Premium plan is being activated…</div>}
-      {status === 'cancelled' && <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm" onClick={() => setParams({})}>Checkout cancelled — no charge was made.</div>}
+      <PageHeader title={t('Plan & billing')} subtitle={isPremium ? `${t('Premium')}${me!.agent.planRenewsAt ? ` · ${t('renews {date}', { date: dateLabel(me!.agent.planRenewsAt) })}` : ''}` : t('You’re on the Free plan.')} />
+      {status === 'success' && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{t('Thank you! Your Premium plan is being activated…')}</div>}
+      {status === 'cancelled' && <div className="mb-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm" onClick={() => setParams({})}>{t('Checkout cancelled — no charge was made.')}</div>}
       <PlanCards
         current={me!.agent.plan}
         action={
           canPay ? (
             <Button variant="premium" className="w-full" loading={upgrade.isPending} onClick={() => upgrade.mutate()}>
-              <Crown className="size-4" /> Upgrade to Premium
-            </Button>
+              <Crown className="size-4" /> {t('Upgrade to Premium')}</Button>
           ) : (
-            <div className="rounded-xl bg-amber-100 px-3 py-2 text-center text-sm text-amber-900">Online payments are not enabled yet.</div>
+            <div className="rounded-xl bg-amber-100 px-3 py-2 text-center text-sm text-amber-900">{t('Online payments are not enabled yet.')}</div>
           )
         }
       />
       <div className="mt-4 space-y-3">
         <ErrorNote error={upgrade.error ?? portal.error} />
         {isPremium && cfg.data?.stripe && (
-          <Button variant="secondary" loading={portal.isPending} onClick={() => portal.mutate()}>
-            Manage subscription & invoices
-          </Button>
+          <Button variant="secondary" loading={portal.isPending} onClick={() => portal.mutate()}>{t('Manage subscription & invoices')}</Button>
         )}
         {cfg.data?.devUpgrade && (
           <Card className="border-dashed text-sm">
-            <b>Developer mode</b> — Stripe isn’t configured, so plans can be switched freely (<code>ALLOW_DEV_UPGRADE=true</code>). Never enable this in production.
-            <div className="mt-2 flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => devPlan.mutate('free')}>Switch to Free</Button>
-              <Button size="sm" variant="secondary" onClick={() => devPlan.mutate('premium')}>Switch to Premium</Button>
+            <b>{t('Developer mode')}</b> {t('— Stripe isn’t configured, so plans can be switched freely (ALLOW_DEV_UPGRADE=true). Never enable this in production.')}<div className="mt-2 flex gap-2">
+              <Button size="sm" variant="secondary" onClick={() => devPlan.mutate('free')}>{t('Switch to Free')}</Button>
+              <Button size="sm" variant="secondary" onClick={() => devPlan.mutate('premium')}>{t('Switch to Premium')}</Button>
             </div>
           </Card>
         )}

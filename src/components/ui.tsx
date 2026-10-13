@@ -2,6 +2,8 @@ import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, 
 import { Link } from 'react-router-dom';
 import { Crown, Loader2, X } from 'lucide-react';
 import { FEATURE_LABELS, type PremiumFeature } from '@shared/plans';
+import { useT } from '@/lib/i18n';
+import { errorText } from '@/lib/errors';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -109,7 +111,8 @@ export function Badge({ tone = 'gray', children }: { tone?: keyof typeof tones; 
 }
 
 export function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={cx('size-5 animate-spin text-brand-700', className)} aria-label="Loading" />;
+  const t = useT();
+  return <Loader2 className={cx('size-5 animate-spin text-brand-700', className)} aria-label={t('Loading')} />;
 }
 export function PageLoader() {
   return (
@@ -143,12 +146,14 @@ export function EmptyState({ icon, title, text, action }: { icon: ReactNode; tit
 }
 
 export function ErrorNote({ error }: { error: unknown }) {
+  const t = useT();
   if (!error) return null;
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg = errorText(t, error);
   return <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{msg}</div>;
 }
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -167,7 +172,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
       <div className={cx('relative flex max-h-[92dvh] w-full flex-col rounded-t-3xl bg-white shadow-xl sm:rounded-3xl', wide ? 'sm:max-w-2xl' : 'sm:max-w-lg')}>
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="rounded-full p-1.5 text-stone-500 hover:bg-stone-100" aria-label="Close">
+          <button onClick={onClose} className="rounded-full p-1.5 text-stone-500 hover:bg-stone-100" aria-label={t('Close')}>
             <X className="size-5" />
           </button>
         </div>
@@ -178,25 +183,25 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 }
 
 export function PremiumBadge() {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800">
-      <Crown className="size-3" /> Premium
-    </span>
+      <Crown className="size-3" /> {t('Premium')}</span>
   );
 }
 
 /** Full-page / inline prompt shown when a free account hits a Premium feature. */
 export function UpgradePrompt({ feature, text, compact }: { feature: PremiumFeature; text?: string; compact?: boolean }) {
+  const t = useT();
   return (
     <div className={cx('rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white text-center', compact ? 'p-4' : 'px-6 py-14')}>
       <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
         <Crown className="size-6" />
       </div>
-      <h3 className="text-lg font-extrabold">{FEATURE_LABELS[feature]} is a Premium feature</h3>
-      <p className="mx-auto mt-1 max-w-md text-sm text-stone-600">{text ?? 'Upgrade to Khondo Premium to unlock it, plus more listings.'}</p>
+      <h3 className="text-lg font-extrabold">{t('{feature} is a Premium feature', { feature: t(FEATURE_LABELS[feature]) })}</h3>
+      <p className="mx-auto mt-1 max-w-md text-sm text-stone-600">{text ?? t('Upgrade to Khondo Premium to unlock it, plus more listings.')}</p>
       <Link to="/app/billing" className={btnClass('premium', 'md', 'mt-4')}>
-        <Crown className="size-4" /> See Premium
-      </Link>
+        <Crown className="size-4" /> {t('See Premium')}</Link>
     </div>
   );
 }

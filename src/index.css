@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans Thai', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
   --color-brand-50: #f0fdfa;
   --color-brand-100: #ccfbf1;
   --color-brand-200: #99f6e4;

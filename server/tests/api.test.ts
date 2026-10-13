@@ -275,3 +275,39 @@ describe('Stripe webhook', () => {
     assert.equal(me.agent.plan, 'free');
   });
 });
+
+describe('exchange rates', () => {
+  it('serves live rates when the provider answers, approximate ones when it does not', async () => {
+    const { resetRatesCache } = await import('../routes/rates.js');
+    const { DISPLAY_CURRENCIES } = await import('../../shared/currency.js');
+    const realFetch = globalThis.fetch;
+    try {
+      // provider down -> built-in approximations, flagged as not live
+      resetRatesCache();
+      globalThis.fetch = (async () => { throw new Error('offline'); }) as typeof fetch;
+      const down = await call('GET', '/rates');
+      assert.equal(down.status, 200);
+      assert.equal(down.data.live, false);
+      assert.equal(down.data.base, 'THB');
+      for (const c of DISPLAY_CURRENCIES) assert.ok(down.data.rates[c] > 0, c);
+      assert.match(down.res.headers.get('cache-control')!, /s-maxage=3600/);
+
+      // provider up -> live table
+      resetRatesCache();
+      const table = Object.fromEntries(DISPLAY_CURRENCIES.map((c, i) => [c, 0.5 + i]));
+      globalThis.fetch = (async () => new Response(JSON.stringify({ base: 'THB', date: '2026-10-12', rates: table }), { status: 200 })) as typeof fetch;
+      const up = await call('GET', '/rates');
+      assert.equal(up.data.live, true);
+      assert.equal(up.data.date, '2026-10-12');
+      assert.equal(up.data.rates.USD, 0.5);
+
+      // partial table from the provider is rejected rather than served
+      resetRatesCache();
+      globalThis.fetch = (async () => new Response(JSON.stringify({ date: '2026-10-12', rates: { USD: 0.03 } }), { status: 200 })) as typeof fetch;
+      assert.equal((await call('GET', '/rates')).data.live, false);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetRatesCache();
+    }
+  });
+});

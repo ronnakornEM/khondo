@@ -78,13 +78,20 @@ npm run cap:ios      # opens Xcode      |   npm run cap:android   # opens Androi
 
 Before release: swap `src/lib/storage.ts` to `@capacitor/preferences` (or secure storage) for the token, add app icons/splash (`@capacitor/assets`), and consider Apple’s in-app-purchase rules for subscriptions bought inside the app.
 
+## Languages & currency
+
+* **Thai / English / 中文** – switch from the 🌐 button (landing pages, auth screens and the app). The browser language is auto-detected; the choice is remembered. Dates use Thai Buddhist Era (พ.ศ.) in Thai.
+* **Thai baht is always the price of record.** A visitor can choose one extra currency (USD, EUR, CNY, GBP, JPY, KRW, SGD, AUD, HKD, MYR, INR) and it is shown *beside* the baht price as an estimate (`฿1,890,000 ≈ US$58,600`), with a footnote on public pages. Rates come from `GET /api/rates` (ECB data via Frankfurter, cached 1 h at the server and CDN, falling back to approximate built-in rates if the provider is unreachable). Bills and invoices stay in baht.
+* Translation is dictionary-based: the English text is the key, `t('Add property')`. Dictionaries live in `src/locales/{th,zh}.ts`; a missing entry falls back to English (and is logged in dev via `window.__i18nMissing`). `npm test` fails if any string used in the app lacks a Thai or Chinese entry. The Thai/Chinese copy is machine-assisted — have a native speaker review it before launch.
+* Agent-written content (titles, descriptions, bio) is shown as typed; per-language listing text is a possible next step.
+
 ## Freemium rules (single source of truth)
 
 `shared/plans.ts` defines the limits; the API enforces them (HTTP `402` + `code: premium_required | property_limit | photo_limit`) and the UI reads the same file to show locks and upgrade prompts.
 
 ## Known gaps / next steps
 
-* **Thai language** – UI is English; add i18n (react-i18next) with `th` first-class. Currency (฿) and units (ตร.ว.) are already Thai-market aware.
+* Per-language listing content (agent-written titles/descriptions in TH/EN/ZH).
 * **SEO / link previews** for landing pages – they are client-rendered; add per-page OG tags via a small Vercel edge function or SSR for `/a/*`.
 * **Login rate limiting, email verification, password reset** (needs an email provider such as Resend).
 * **Reminders** are stored and exported to `.ics` (calendar apps fire them); push/LINE notifications would need a cron + provider.

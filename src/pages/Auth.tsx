@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
+import { PrefsMenu } from '@/components/PrefsMenu';
 import { Button, ErrorNote, TextInput } from '@/components/ui';
 import { post } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useT } from '@/lib/i18n';
 
 function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle: string; children: React.ReactNode; footer: React.ReactNode }) {
   return (
-    <div className="grid min-h-dvh place-items-center bg-gradient-to-b from-brand-50 to-sand px-4 py-10">
+    <div className="relative grid min-h-dvh place-items-center bg-gradient-to-b from-brand-50 to-sand px-4 py-10">
+      <div className="absolute right-4 top-4"><PrefsMenu /></div>
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex justify-center">
           <Logo />
@@ -47,6 +50,7 @@ function useAuthForm(path: '/auth/login' | '/auth/register') {
 }
 
 export function LoginPage() {
+  const t = useT();
   const { token } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,30 +58,26 @@ export function LoginPage() {
   if (token) return <Navigate to="/app" replace />;
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to manage your portfolio."
+      title={t('Welcome back')}
+      subtitle={t('Sign in to manage your portfolio.')}
       footer={
-        <>
-          New to Khondo?{' '}
-          <Link to="/register" className="font-semibold text-brand-700 underline">
-            Create a free account
-          </Link>
+        <>{t('New to Khondo?')}{' '}
+          <Link to="/register" className="font-semibold text-brand-700 underline">{t('Create a free account')}</Link>
         </>
       }
     >
       <form onSubmit={(e) => submit(e, { email, password })} className="space-y-4">
-        <TextInput label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <TextInput label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <TextInput label={t('Email')} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextInput label={t('Password')} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         <ErrorNote error={error} />
-        <Button type="submit" loading={busy} className="w-full">
-          Sign in
-        </Button>
+        <Button type="submit" loading={busy} className="w-full">{t('Sign in')}</Button>
       </form>
     </AuthLayout>
   );
 }
 
 export function RegisterPage() {
+  const t = useT();
   const { token } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -86,25 +86,20 @@ export function RegisterPage() {
   if (token) return <Navigate to="/app" replace />;
   return (
     <AuthLayout
-      title="Create your free account"
-      subtitle="Build your portfolio and landing page in minutes."
+      title={t('Create your free account')}
+      subtitle={t('Build your portfolio and landing page in minutes.')}
       footer={
-        <>
-          Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand-700 underline">
-            Sign in
-          </Link>
+        <>{t('Already have an account?')}{' '}
+          <Link to="/login" className="font-semibold text-brand-700 underline">{t('Sign in')}</Link>
         </>
       }
     >
       <form onSubmit={(e) => submit(e, { name, email, password })} className="space-y-4">
-        <TextInput label="Your name or agency" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
-        <TextInput label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <TextInput label="Password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} hint="At least 8 characters" />
+        <TextInput label={t('Your name or agency')} autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput label={t('Email')} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextInput label={t('Password')} type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} hint={t('At least 8 characters')} />
         <ErrorNote error={error} />
-        <Button type="submit" loading={busy} className="w-full">
-          Create account
-        </Button>
+        <Button type="submit" loading={busy} className="w-full">{t('Create account')}</Button>
       </form>
     </AuthLayout>
   );

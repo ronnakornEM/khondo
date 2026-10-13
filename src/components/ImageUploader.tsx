@@ -2,7 +2,9 @@ import { useRef, useState } from 'react';
 import { ImagePlus, Link2, Star, Trash2 } from 'lucide-react';
 import { ApiError, api } from '@/lib/api';
 import { shrinkImage } from '@/lib/image';
+import { errorText } from '@/lib/errors';
 import { Button, cx } from './ui';
+import { useT } from '@/lib/i18n';
 
 export async function uploadImage(file: File): Promise<string> {
   const blob = await shrinkImage(file);
@@ -12,6 +14,7 @@ export async function uploadImage(file: File): Promise<string> {
 }
 
 export function ImageUploader({ photos, onChange, max }: { photos: string[]; onChange: (p: string[]) => void; max: number }) {
+  const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -27,7 +30,7 @@ export function ImageUploader({ photos, onChange, max }: { photos: string[]; onC
       for (const f of Array.from(files).slice(0, max - photos.length)) added.push(await uploadImage(f));
     } catch (e) {
       if (e instanceof ApiError && e.code === 'uploads_disabled') setUploadsOff(true);
-      setError(e instanceof Error ? e.message : 'Upload failed');
+      setError(e instanceof Error ? errorText(t, e) : t('Upload failed'));
     } finally {
       if (added.length) onChange([...photos, ...added]);
       setBusy(false);
@@ -51,14 +54,14 @@ export function ImageUploader({ photos, onChange, max }: { photos: string[]; onC
         {photos.map((p, i) => (
           <div key={p + i} className="group relative aspect-square overflow-hidden rounded-xl bg-stone-100">
             <img src={p} alt="" className="size-full object-cover" loading="lazy" />
-            {i === 0 && <span className="absolute left-1.5 top-1.5 rounded-full bg-brand-700 px-2 py-0.5 text-[10px] font-bold text-white">Cover</span>}
+            {i === 0 && <span className="absolute left-1.5 top-1.5 rounded-full bg-brand-700 px-2 py-0.5 text-[10px] font-bold text-white">{t('Cover')}</span>}
             <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-gradient-to-t from-black/60 p-1.5">
               {i !== 0 && (
-                <button type="button" onClick={() => makeCover(i)} className="rounded-full bg-white/90 p-1.5 text-stone-700" aria-label="Make cover">
+                <button type="button" onClick={() => makeCover(i)} className="rounded-full bg-white/90 p-1.5 text-stone-700" aria-label={t('Make cover')}>
                   <Star className="size-3.5" />
                 </button>
               )}
-              <button type="button" onClick={() => onChange(photos.filter((_, j) => j !== i))} className="rounded-full bg-white/90 p-1.5 text-red-600" aria-label="Remove photo">
+              <button type="button" onClick={() => onChange(photos.filter((_, j) => j !== i))} className="rounded-full bg-white/90 p-1.5 text-red-600" aria-label={t('Remove photo')}>
                 <Trash2 className="size-3.5" />
               </button>
             </div>
@@ -72,7 +75,7 @@ export function ImageUploader({ photos, onChange, max }: { photos: string[]; onC
             className={cx('flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-300 text-xs font-semibold text-stone-500 hover:border-brand-600 hover:text-brand-700', busy && 'opacity-60')}
           >
             <ImagePlus className="size-6" />
-            {busy ? 'Uploading…' : 'Add photos'}
+            {busy ? t('Uploading…') : t('Add photos')}
           </button>
         )}
       </div>
@@ -85,17 +88,15 @@ export function ImageUploader({ photos, onChange, max }: { photos: string[]; onC
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUrl())}
-              placeholder="…or paste an image link"
+              placeholder={t('…or paste an image link')}
               className="w-full rounded-xl border border-stone-300 bg-white py-2 pl-9 pr-3"
             />
           </div>
-          <Button type="button" variant="secondary" onClick={addUrl}>
-            Add
-          </Button>
+          <Button type="button" variant="secondary" onClick={addUrl}>{t('Add')}</Button>
         </div>
       )}
       <p className="mt-2 text-xs text-stone-500">
-        {photos.length}/{max} photos · the first photo is the cover.{uploadsOff && ' Uploading is not enabled on this server yet — paste links instead.'}
+        {t('{count}/{max} photos · the first photo is the cover.', { count: photos.length, max })}{uploadsOff && ' ' + t('Uploading is not enabled on this server yet — paste links instead.')}
       </p>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

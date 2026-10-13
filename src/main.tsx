@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/lib/auth';
+import { I18nProvider } from '@/lib/i18n';
+import { CurrencyProvider } from '@/lib/currency';
 import { ApiError } from '@/lib/api';
 import { App } from './App';
 import './index.css';
@@ -21,9 +23,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <I18nProvider>
+          <CurrencyProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </CurrencyProvider>
+        </I18nProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,
