@@ -110,6 +110,10 @@ The whole subscription flow runs against Stripe’s **sandbox** with test keys �
 5. You are redirected back and the app **syncs the subscription straight from Stripe**, so it works locally even without webhooks. For the real webhook path run `stripe listen --forward-to localhost:3001/api/billing/webhook` and put the printed `whsec_…` into `STRIPE_WEBHOOK_SECRET`.
 6. *Manage subscription & invoices* opens the Stripe Customer Portal (enable it in Settings → Billing → Customer portal). Cancelling there downgrades the agent via the webhook (or *Refresh plan from Stripe*).
 
+**Check it any time:** `npm run stripe:check` verifies the key mode, the monthly ฿299 price and the customer portal (read-only, exits non-zero if something is missing).
+
+**Project sandbox status** (Stripe account `acct_1RVFQSFS6bjfP0cZ`, test mode): product `prod_VQvqyWqUzd38ij` “Khondo Premium”, price `price_1UQ3yUFS6bjfP0cZicKIEjCl` (฿299/month, lookup key `khondo_premium_monthly`) and a default customer portal configuration are already created. All that is left is adding `STRIPE_SECRET_KEY=sk_test_…` to `.env` (local) and to the Vercel project's environment variables, then redeploying. Checkout shows the Stripe account's business name — change it in Dashboard → Settings → Business → Public details / Branding.
+
 `npm test` includes an offline test of this flow against a fake Stripe server (`STRIPE_API_BASE` points the code at it), covering checkout, sync, portal, webhook signatures and error handling. Going live later = swap in `sk_live_…`, run `stripe:setup -- --live`, and register the live webhook.
 
 ## Languages & currency

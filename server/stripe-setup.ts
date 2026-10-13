@@ -34,6 +34,27 @@ if (!priceId) {
 }
 console.log(`\nSTRIPE_PRICE_ID=${priceId}   # optional – the app also finds the price by its lookup key "${PRICE_LOOKUP_KEY}"`);
 
+// The Customer Portal ("Manage subscription") only works once a default configuration exists.
+const portals = await stripeRequest<{ data: { id: string; is_default: boolean }[] }>('GET', 'billing_portal/configurations', { limit: '10' });
+if (portals.data.some((c) => c.is_default)) {
+  console.log('Customer portal already configured');
+} else {
+  const cfg = await stripeRequest('POST', 'billing_portal/configurations', {
+    name: 'Khondo default',
+    'business_profile[headline]': 'Manage your Khondo Premium subscription',
+    'features[invoice_history][enabled]': 'true',
+    'features[payment_method_update][enabled]': 'true',
+    'features[customer_update][enabled]': 'true',
+    'features[customer_update][allowed_updates][0]': 'email',
+    'features[customer_update][allowed_updates][1]': 'name',
+    'features[customer_update][allowed_updates][2]': 'phone',
+    'features[customer_update][allowed_updates][3]': 'address',
+    'features[subscription_cancel][enabled]': 'true',
+    'features[subscription_cancel][mode]': 'at_period_end',
+  });
+  console.log(`Created customer portal configuration ${cfg.id}`);
+}
+
 const wh = args.indexOf('--webhook');
 if (wh >= 0 && args[wh + 1]) {
   const url = args[wh + 1];

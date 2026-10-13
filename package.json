@@ -22,7 +22,8 @@
     "cap:android": "cap open android",
     "vercel-build": "tsx server/migrate.ts && npm run build",
     "admin:grant": "tsx server/admin-grant.ts",
-    "stripe:setup": "tsx server/stripe-setup.ts"
+    "stripe:setup": "tsx server/stripe-setup.ts",
+    "stripe:check": "tsx server/stripe-check.ts"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",
