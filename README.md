@@ -95,6 +95,8 @@ npm run admin:grant -- you@example.com           # make an existing account a su
 npm run admin:grant -- you@example.com --revoke
 ```
 
+On a shared or hosted database set `SEED_ADMIN_PASSWORD` when seeding so the demo superuser doesn't get the documented `admin1234`.
+
 There is deliberately **no sign-up or API path** to become a superuser — it can only be granted with that script (so nobody can claim it by registering an email first). On production grant it only to your own account.
 
 ## Stripe sandbox (test mode)

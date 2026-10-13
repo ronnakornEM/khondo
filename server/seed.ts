@@ -4,6 +4,7 @@ import { hashPassword } from './auth.js';
 import { DEFAULT_LANDING } from '../shared/types.js';
 
 // Demo workspace for local development:  npm run db:migrate && npm run db:seed
+// SEED_ADMIN_PASSWORD overrides the superuser password (use it for any shared/hosted database).
 // Agent (Premium):  demo@khondo.app / demo1234   → /a/nok-property
 // Superuser:        admin@khondo.app / admin1234  (all Premium features + Admin page)
 // Customer:         buyer@khondo.app / buyer1234
@@ -101,7 +102,7 @@ async function main() {
     );
   }
   // --- Superuser (stored plan is Free on purpose: the superuser flag is what unlocks Premium) ---
-  const [admin] = await q("INSERT INTO users (email, password_hash, name, is_superuser) VALUES ('admin@khondo.app',$1,'Khondo Admin',true) RETURNING id", [await hashPassword('admin1234')]);
+  const [admin] = await q("INSERT INTO users (email, password_hash, name, is_superuser) VALUES ('admin@khondo.app',$1,'Khondo Admin',true) RETURNING id", [await hashPassword(process.env.SEED_ADMIN_PASSWORD || 'admin1234')]);
   const [adminAgent] = await q("INSERT INTO agents (user_id, slug, display_name, headline, landing) VALUES ($1,'khondo-admin','Khondo Admin','Superuser test account',$2::jsonb) RETURNING id", [admin.id, JSON.stringify(DEFAULT_LANDING)]);
   await q("INSERT INTO properties (agent_id,title,type,listing_type,price,bedrooms,bathrooms,area_sqm,district,photos,description) VALUES ($1,'Test listing (superuser)','condo','sale',1500000,1,1,30,'Mueang Khon Kaen',$2::jsonb,'Created by the seed script.')", [adminAgent.id, JSON.stringify([art('#334155', '#94a3b8', 'Test listing')])]);
 
