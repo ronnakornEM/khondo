@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.vercel
+*.log
+.DS_Store
+# Capacitor native projects are generated with `npx cap add ios|android`
+/ios
+/android

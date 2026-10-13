@@ -1,0 +1,54 @@
+{
+  "name": "khondo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Khondo — portfolio, landing page and CRM for real estate agents (Khon Kaen + condo).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:web": "vite",
+    "dev:api": "tsx watch server/dev.ts",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "db:migrate": "tsx server/migrate.ts",
+    "db:seed": "tsx server/seed.ts",
+    "test": "tsx --test server/tests/*.test.ts",
+    "cap:sync": "npm run build && cap sync",
+    "cap:ios": "cap open ios",
+    "cap:android": "cap open android",
+    "vercel-build": "tsx server/migrate.ts && npm run build"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.3",
+    "@hono/node-server": "^2.1.4",
+    "@tanstack/react-query": "^5.104.2",
+    "@vercel/blob": "^2.8.1",
+    "date-fns": "^4.4.0",
+    "hono": "^4.13.13",
+    "jose": "^6.2.12",
+    "lucide-react": "^1.55.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
