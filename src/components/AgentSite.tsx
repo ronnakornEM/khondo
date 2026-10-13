@@ -1,10 +1,12 @@
-import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Bath, BedDouble, Building2, Globe, Mail, MapPin, MessageCircle, Phone, Ruler, Send } from 'lucide-react';
 import type { LandingSettings, Property, PublicAgentResponse } from '@shared/types';
 import { lineUrl, tEnum, whatsappLikeTel } from '@/lib/format';
 import { PriceLabel, RatesNote } from './Price';
 import { PrefsMenu } from './PrefsMenu';
+import { FavButton } from './FavButton';
+import { useAuth } from '@/lib/auth';
 import { ApiError, post } from '@/lib/api';
 import { errorText } from '@/lib/errors';
 import { LogoMark } from './Logo';
@@ -48,7 +50,12 @@ function themeClasses(theme: LandingSettings['theme']) {
 export function InquiryForm({ slug, propertyId, accent, theme, preview }: { slug: string; propertyId?: string; accent: string; theme: LandingSettings['theme']; preview?: boolean }) {
   const t = useT();
   const tc = themeClasses(theme);
+  const { customer } = useAuth();
   const [f, setF] = useState({ name: '', phone: '', email: '', message: '', website: '' });
+  // Signed-in customers don't retype their details.
+  useEffect(() => {
+    if (customer) setF((x) => ({ ...x, name: x.name || customer.user.name, email: x.email || customer.user.email, phone: x.phone || customer.user.phone }));
+  }, [customer]);
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [error, setError] = useState('');
   const submit = async (e: FormEvent) => {
@@ -97,7 +104,7 @@ export function ContactButtons({ agent, accent, className = '' }: { agent: SiteA
   );
 }
 
-function ListingCard({ p, href, theme, accent }: { p: Property; href: string; theme: LandingSettings['theme']; accent: string }) {
+export function ListingCard({ p, href, theme, accent }: { p: Property; href: string; theme: LandingSettings['theme']; accent: string }) {
   const t = useT();
   const tc = themeClasses(theme);
   return (
@@ -105,7 +112,8 @@ function ListingCard({ p, href, theme, accent }: { p: Property; href: string; th
       <div className={`relative aspect-[4/3] overflow-hidden ${theme === 'modern' ? 'bg-stone-800' : 'bg-stone-100'}`}>
         {p.photos[0] ? <img src={p.photos[0]} alt={p.title} loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="grid size-full place-items-center text-stone-300"><Building2 className="size-12" /></div>}
         <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_STYLE[p.status]}`}>{p.status === 'available' ? (p.listingType === 'rent' ? t('For rent') : p.listingType === 'sale' ? t('For sale') : t('For sale / rent')) : tEnum(p.status)}</span>
-        {p.featured && <span className="absolute right-3 top-3 rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold text-amber-950">{t('★ Featured')}</span>}
+        {p.featured && <span className="absolute left-3 top-12 rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold text-amber-950">{t('★ Featured')}</span>}
+        <FavButton id={p.id} className="absolute right-3 top-3" />
       </div>
       <div className="p-4">
         <div className="text-lg font-extrabold" style={{ color: theme === 'modern' ? undefined : accent }}><PriceLabel p={p} /></div>
@@ -126,9 +134,10 @@ export function Branding({ show, theme }: { show: boolean; theme: LandingSetting
   const t = useT();
   if (!show) return null;
   return (
-    <a href="/" className={`mt-10 flex items-center justify-center gap-2 py-6 text-sm ${theme === 'modern' ? 'text-stone-500' : 'text-stone-400'}`}>
-      <LogoMark className="size-5" /> <b>{t('Made with Khondo')}</b>
-    </a>
+    <div className={`mt-10 flex flex-col items-center gap-1 py-6 text-sm ${theme === 'modern' ? 'text-stone-500' : 'text-stone-400'}`}>
+      <a href="/" className="flex items-center gap-2"><LogoMark className="size-5" /> <b>{t('Made with Khondo')}</b></a>
+      <Link to="/browse" className="font-semibold underline">{t('Browse all properties')}</Link>
+    </div>
   );
 }
 

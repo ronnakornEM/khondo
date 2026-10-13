@@ -14,6 +14,8 @@ import { dashboard } from './routes/dashboard.js';
 import { billing } from './routes/billing.js';
 import { uploads } from './routes/uploads.js';
 import { rates } from './routes/rates.js';
+import { customer } from './routes/customer.js';
+import { admin } from './routes/admin.js';
 
 export const app = new Hono().basePath('/api');
 
@@ -42,6 +44,8 @@ app.route('/', dashboard);
 app.route('/', billing);
 app.route('/', uploads);
 app.route('/', rates);
+app.route('/', customer);
+app.route('/', admin);
 
 app.notFound((c) => c.json({ error: 'Not found', code: 'not_found' }, 404));
 

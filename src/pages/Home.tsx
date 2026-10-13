@@ -24,6 +24,7 @@ export function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Logo />
         <div className="flex items-center gap-2">
+          <Link to="/browse" className={btnClass('ghost', 'sm')}>{t('Browse properties')}</Link>
           <PrefsMenu />
           {token ? <Link to="/app" className={btnClass('primary', 'sm')}>{t('Open app')}</Link> : (<><Link to="/login" className={btnClass('ghost', 'sm')}>{t('Sign in')}</Link><Link to="/register" className={btnClass('primary', 'sm')}>{t('Start free')}</Link></>)}
         </div>
@@ -36,9 +37,9 @@ export function Home() {
           <p className="mt-5 max-w-xl text-lg text-stone-600">{t('Khondo is the portfolio, landing page and back-office for real estate agents. Show off your properties, catch every inquiry, and — with Premium — run your clients, bills and calendar in the same place.')}</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link to="/register" className={btnClass('primary', 'md', 'px-6 py-3 text-base')}>{t('Create your free page')} <ArrowRight className="size-5" /></Link>
-            <a href="#pricing" className={btnClass('secondary', 'md', 'px-6 py-3 text-base')}>{t('See pricing')}</a>
+            <Link to="/browse" className={btnClass('secondary', 'md', 'px-6 py-3 text-base')}>{t('Browse properties')}</Link>
           </div>
-          <p className="mt-3 text-sm text-stone-500">{t('Free forever for up to 5 properties. No card needed.')}</p>
+          <p className="mt-3 text-sm text-stone-500">{t('Free forever for up to 5 properties. No card needed.')} <a href="#pricing" className="font-semibold underline">{t('See pricing')}</a></p>
         </div>
         <HeroMock />
       </section>

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Khondo — portfolio, landing page and CRM for real estate agents (Khon Kaen + condo).",
+  "description": "Khondo \u2014 portfolio, landing page and CRM for real estate agents (Khon Kaen + condo).",
   "engines": {
     "node": ">=22"
   },
@@ -16,11 +16,13 @@
     "preview": "vite preview",
     "db:migrate": "tsx server/migrate.ts",
     "db:seed": "tsx server/seed.ts",
-    "test": "tsx --test server/tests/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 server/tests/*.test.ts",
     "cap:sync": "npm run build && cap sync",
     "cap:ios": "cap open ios",
     "cap:android": "cap open android",
-    "vercel-build": "tsx server/migrate.ts && npm run build"
+    "vercel-build": "tsx server/migrate.ts && npm run build",
+    "admin:grant": "tsx server/admin-grant.ts",
+    "stripe:setup": "tsx server/stripe-setup.ts"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.3",

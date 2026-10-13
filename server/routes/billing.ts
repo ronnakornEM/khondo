@@ -5,35 +5,27 @@ import { one, query } from '../db.js';
 import { HttpError, body, parse } from '../http.js';
 import { requireAuth, type AuthEnv } from '../auth.js';
 import { toAgent } from '../mappers.js';
+import { resolvePriceId, stripeEnabled, stripeMode, stripeRequest } from '../stripe.js';
 
 // Subscriptions run on Stripe Checkout + Customer Portal (supports cards and PromptPay in Thailand).
 // Plain fetch keeps the serverless bundle small — no SDK needed.
 export const billing = new Hono<AuthEnv>();
 
-const stripeKey = () => process.env.STRIPE_SECRET_KEY;
 // Free plan switching is for local testing only — it can never be on in a Vercel production deployment.
 const devUpgrade = () => process.env.ALLOW_DEV_UPGRADE === 'true' && process.env.VERCEL_ENV !== 'production';
+
+const stripe = <T = any>(path: string, params: Record<string, string> = {}) => stripeRequest<T>('POST', path, params);
+
 const appUrl = (c: { req: { url: string } }) => process.env.APP_URL?.replace(/\/$/, '') || new URL(c.req.url).origin;
 
-async function stripe<T = any>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${stripeKey()}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params),
-  });
-  const json: any = await res.json();
-  if (!res.ok) throw new HttpError(502, json?.error?.message ?? 'Payment provider error', 'stripe_error');
-  return json;
-}
-
 billing.get('/billing/config', requireAuth, (c) =>
-  c.json({ stripe: !!(stripeKey() && process.env.STRIPE_PRICE_ID), devUpgrade: devUpgrade() }),
+  c.json({ stripe: stripeEnabled(), mode: stripeEnabled() ? stripeMode() : null, devUpgrade: devUpgrade() }),
 );
 
 billing.post('/billing/checkout', requireAuth, async (c) => {
   const agent = c.get('agent');
   if (agent.plan === 'premium') throw new HttpError(409, 'You are already on Premium', 'already_premium');
-  if (stripeKey() && process.env.STRIPE_PRICE_ID) {
+  if (stripeEnabled()) {
     let customer = agent.stripeCustomerId;
     if (!customer) {
       const user = await one<{ email: string }>('SELECT email FROM users WHERE id=$1', [agent.userId]);
@@ -44,7 +36,7 @@ billing.post('/billing/checkout', requireAuth, async (c) => {
       mode: 'subscription',
       customer,
       client_reference_id: agent.id,
-      'line_items[0][price]': process.env.STRIPE_PRICE_ID,
+      'line_items[0][price]': await resolvePriceId(),
       'line_items[0][quantity]': '1',
       success_url: `${appUrl(c)}/app/billing?status=success`,
       cancel_url: `${appUrl(c)}/app/billing?status=cancelled`,
@@ -54,16 +46,38 @@ billing.post('/billing/checkout', requireAuth, async (c) => {
   }
   if (devUpgrade()) {
     const row = await one('UPDATE agents SET plan=\'premium\', plan_renews_at = now() + interval \'30 days\' WHERE id=$1 RETURNING *', [agent.id]);
-    return c.json({ url: null, agent: toAgent(row) });
+    return c.json({ url: null, agent: toAgent({ ...row, plan: 'premium' }) });
   }
   throw new HttpError(501, 'Payments are not configured yet', 'billing_disabled');
 });
 
 billing.post('/billing/portal', requireAuth, async (c) => {
   const agent = c.get('agent');
-  if (!stripeKey() || !agent.stripeCustomerId) throw new HttpError(400, 'No billing account to manage', 'no_customer');
+  if (!stripeEnabled() || !agent.stripeCustomerId) throw new HttpError(400, 'No billing account to manage', 'no_customer');
   const session = await stripe('billing_portal/sessions', { customer: agent.stripeCustomerId, return_url: `${appUrl(c)}/app/billing` });
   return c.json({ url: session.url as string });
+});
+
+// Pulls the subscription state straight from Stripe. The webhook is the normal path, but this makes the sandbox
+// work locally (no `stripe listen` needed) and heals a missed webhook: the app calls it when the customer returns
+// from Checkout.
+billing.post('/billing/sync', requireAuth, async (c) => {
+  const agent = c.get('agent');
+  if (!stripeEnabled()) throw new HttpError(501, 'Payments are not configured yet', 'billing_disabled');
+  const stored = await one<{ plan: 'free' | 'premium'; stripeCustomerId: string | null }>('SELECT plan, stripe_customer_id FROM agents WHERE id = $1', [agent.id]);
+  if (!stored?.stripeCustomerId) return c.json({ plan: stored?.plan ?? agent.plan, changed: false });
+  const subs = await stripeRequest<{ data: any[] }>('GET', 'subscriptions', { customer: stored.stripeCustomerId, status: 'all', limit: '10' });
+  const active = subs.data.find((s) => ['active', 'trialing', 'past_due'].includes(s.status));
+  let plan: 'free' | 'premium' = stored.plan;
+  if (active) {
+    const end = active.current_period_end ?? active.items?.data?.[0]?.current_period_end ?? null;
+    await query(`UPDATE agents SET plan='premium', stripe_subscription_id=$1, plan_renews_at = CASE WHEN $2::bigint IS NULL THEN NULL ELSE to_timestamp($2::bigint) END WHERE id=$3`, [active.id, end, agent.id]);
+    plan = 'premium';
+  } else if (subs.data.length) {
+    await query(`UPDATE agents SET plan='free', plan_renews_at=NULL, stripe_subscription_id=NULL WHERE id=$1`, [agent.id]);
+    plan = 'free';
+  }
+  return c.json({ plan, changed: plan !== stored.plan });
 });
 
 // Local testing only: flip plans without Stripe.

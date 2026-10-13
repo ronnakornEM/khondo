@@ -2,10 +2,10 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { tx, one, query, buildUpdate } from '../db.js';
 import { HttpError, body, parse } from '../http.js';
-import { hashPassword, signToken, verifyPassword, requireAuth, type AgentRow, type AuthEnv } from '../auth.js';
+import { hashPassword, signToken, verifyPassword, requireAuth, requireUser, withEffectivePlan, AGENT_SELECT, type AgentRow, type AuthEnv } from '../auth.js';
 import { toAgent, landingOf } from '../mappers.js';
 import { PLANS } from '../../shared/plans.js';
-import { DEFAULT_LANDING, LANDING_THEMES, type MeResponse } from '../../shared/types.js';
+import { DEFAULT_LANDING, LANDING_THEMES, type CustomerMeResponse, type MeResponse } from '../../shared/types.js';
 
 export const auth = new Hono<AuthEnv>();
 
@@ -35,17 +35,27 @@ const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
   password: z.string().min(8, 'Password must be at least 8 characters').max(200),
   name: z.string().trim().min(1, 'Name is required').max(80),
+  role: z.enum(['agent', 'customer']).default('agent'),
+  phone: z.string().trim().max(40).default(''),
 });
 
 auth.post('/auth/register', async (c) => {
-  const { email, password, name } = parse(registerSchema, await body(c));
+  const { email, password, name, role, phone } = parse(registerSchema, await body(c));
   if (await one('SELECT 1 FROM users WHERE lower(email)=$1', [email])) {
     throw new HttpError(409, 'An account with this email already exists', 'email_taken');
   }
   const hash = await hashPassword(password);
+  // Registration can only ever create agent or customer accounts; superusers are granted out-of-band (npm run admin:grant).
+  if (role === 'customer') {
+    const [user] = await query<{ id: string }>(
+      "INSERT INTO users (email, password_hash, role, name, phone) VALUES ($1,$2,'customer',$3,$4) RETURNING id",
+      [email, hash, name, phone],
+    );
+    return c.json({ token: await signToken(user.id), role: 'customer' as const }, 201);
+  }
   const slug = await uniqueSlug(name);
   const agent = await tx(async (q) => {
-    const [user] = await q('INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id', [email, hash]);
+    const [user] = await q('INSERT INTO users (email, password_hash, name, phone) VALUES ($1,$2,$3,$4) RETURNING id', [email, hash, name, phone]);
     const [a] = await q(
       `INSERT INTO agents (user_id, slug, display_name, contact_email, landing, headline)
        VALUES ($1,$2,$3,$4,$5::jsonb,'Real estate agent in Khon Kaen') RETURNING *`,
@@ -53,23 +63,33 @@ auth.post('/auth/register', async (c) => {
     );
     return a as AgentRow;
   });
-  return c.json({ token: await signToken(agent.userId), agent: toAgent(agent) }, 201);
+  return c.json({ token: await signToken(agent.userId), role: 'agent' as const, agent: toAgent(agent) }, 201);
 });
 
 const loginSchema = z.object({ email: z.string().trim().toLowerCase(), password: z.string().min(1) });
 
 auth.post('/auth/login', async (c) => {
   const { email, password } = parse(loginSchema, await body(c));
-  const user = await one<{ id: string; passwordHash: string }>('SELECT id, password_hash FROM users WHERE lower(email)=$1', [email]);
+  const user = await one<{ id: string; passwordHash: string; role: 'agent' | 'customer' }>('SELECT id, password_hash, role FROM users WHERE lower(email)=$1', [email]);
   // Always run a hash comparison so timing doesn't reveal whether the email exists.
   const ok = await verifyPassword(password, user?.passwordHash ?? 'scrypt$00$00');
   if (!user || !ok) throw new HttpError(401, 'Incorrect email or password', 'bad_credentials');
-  const agent = (await one<AgentRow>('SELECT * FROM agents WHERE user_id=$1', [user.id]))!;
-  return c.json({ token: await signToken(user.id), agent: toAgent(agent) });
+  const token = await signToken(user.id);
+  if (user.role === 'customer') return c.json({ token, role: 'customer' as const });
+  const agent = (await one<AgentRow>(`${AGENT_SELECT} WHERE a.user_id=$1`, [user.id]))!;
+  return c.json({ token, role: 'agent' as const, agent: toAgent(withEffectivePlan(agent)) });
 });
 
-auth.get('/me', requireAuth, async (c) => {
-  const agent = c.get('agent');
+// Agents get their full workspace summary; customers get their account details.
+auth.get('/me', requireUser, async (c) => {
+  const user = c.get('user');
+  if (user.role === 'customer') {
+    const res: CustomerMeResponse = { role: 'customer', user: { id: user.id, email: user.email, name: user.name, phone: user.phone }, isSuperuser: user.isSuperuser };
+    return c.json(res);
+  }
+  const row = await one<AgentRow>(`${AGENT_SELECT} WHERE a.user_id = $1`, [user.id]);
+  if (!row) throw new HttpError(403, 'This area is for agents', 'agent_only');
+  const agent = withEffectivePlan(row, c.req.header('x-view-as-plan'));
   const origin = process.env.APP_URL?.replace(/\/$/, '') || new URL(c.req.url).origin;
   const [counts] = await query<{ total: number; published: number }>(
     `SELECT count(*)::int AS total, count(*) FILTER (WHERE published)::int AS published FROM properties WHERE agent_id=$1`,
@@ -77,12 +97,23 @@ auth.get('/me', requireAuth, async (c) => {
   );
   const limits = PLANS[agent.plan];
   const res: MeResponse = {
+    role: 'agent',
     agent: toAgent(agent),
+    isSuperuser: !!row.isSuperuser,
     usage: { properties: counts.total },
     hiddenProperties: Math.max(0, counts.published - limits.maxProperties),
     calendarFeedUrl: limits.advancedCalendar ? `${origin}/api/calendar/${agent.calendarToken}/khondo.ics` : null,
   };
   return c.json(res);
+});
+
+// Customer profile (used to prefill inquiry forms)
+auth.patch('/account', requireUser, async (c) => {
+  const data = parse(z.object({ name: z.string().trim().min(1).max(80), phone: z.string().trim().max(40) }).partial(), await body(c));
+  const { sets, values } = buildUpdate(data);
+  if (sets.length) await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${values.length + 1}`, [...values, c.get('user').id]);
+  const u = (await one<{ id: string; email: string; name: string; phone: string; isSuperuser: boolean }>('SELECT id, email, name, phone, is_superuser FROM users WHERE id=$1', [c.get('user').id]))!;
+  return c.json({ user: { id: u.id, email: u.email, name: u.name, phone: u.phone } });
 });
 
 const httpUrl = z
@@ -147,5 +178,5 @@ auth.patch('/me/profile', requireAuth, async (c) => {
     `UPDATE agents SET ${sets.join(', ')}, updated_at = now() WHERE id = $${values.length + 1} RETURNING *`,
     [...values, agent.id],
   );
-  return c.json({ agent: toAgent(updated!) });
+  return c.json({ agent: toAgent({ ...updated!, plan: agent.plan }) });
 });

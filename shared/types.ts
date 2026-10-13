@@ -174,10 +174,18 @@ export interface CalendarEvent {
 }
 
 export interface MeResponse {
+  role: 'agent';
+  isSuperuser: boolean;
   agent: Agent;
   usage: { properties: number };
   hiddenProperties: number; // published listings not shown publicly because of the plan limit
   calendarFeedUrl: string | null;
+}
+
+export interface CustomerMeResponse {
+  role: 'customer';
+  isSuperuser: boolean;
+  user: { id: string; email: string; name: string; phone: string };
 }
 
 export interface PublicAgentResponse {
@@ -191,4 +199,47 @@ export interface DashboardResponse {
   upcomingEvents: CalendarEvent[];
   outstanding: { count: number; total: number; overdue: number } | null; // premium only
   contactsByStage: Record<ContactStage, number> | null; // premium only
+}
+
+export interface AgentChip {
+  slug: string;
+  displayName: string;
+  avatarUrl: string;
+  headline: string;
+}
+
+/** A property as shown in marketplace lists (browse, saved), with the agent that owns it. */
+export type PropertyWithAgent = Property & { agent: AgentChip };
+
+export interface BrowseResponse {
+  items: PropertyWithAgent[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PublicPropertyResponse {
+  agent: PublicAgentResponse['agent'];
+  property: Property;
+  others: Property[]; // other live listings of the same agent
+  othersTotal: number;
+}
+
+export interface MyInquiry {
+  id: string;
+  message: string;
+  createdAt: string;
+  propertyId: string | null;
+  propertyTitle: string | null;
+  propertyPhoto: string | null;
+  agentSlug: string;
+  agentName: string;
+  agentPhone: string;
+  agentLineId: string;
+  agentEmail: string;
+}
+
+export interface AdminOverview {
+  totals: { agents: number; customers: number; premium: number; properties: number; inquiries: number };
+  agents: { id: string; slug: string; displayName: string; plan: PlanId; planRenewsAt: string | null; createdAt: string; email: string; isSuperuser: boolean; properties: number; hasStripe: boolean }[];
 }

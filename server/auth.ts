@@ -1,7 +1,7 @@
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { SignJWT, jwtVerify } from 'jose';
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import { one } from './db.js';
 import { HttpError } from './http.js';
 import { PLANS, type PremiumFeature } from '../shared/plans.js';
@@ -50,15 +50,36 @@ export interface AgentRow {
   stripeSubscriptionId: string | null;
   calendarToken: string;
   createdAt: Date;
+  isSuperuser?: boolean;
 }
 
-export type AuthEnv = { Variables: { agent: AgentRow } };
+export interface UserRow {
+  id: string;
+  email: string;
+  role: 'agent' | 'customer';
+  name: string;
+  phone: string;
+  isSuperuser: boolean;
+}
 
-/** Requires `Authorization: Bearer <jwt>` (works for browsers and native apps alike). */
-export const requireAuth: MiddlewareHandler<AuthEnv> = async (c, next) => {
+export type AuthEnv = { Variables: { agent: AgentRow; user: UserRow } };
+
+/** Agent row joined with the owner's superuser flag. */
+export const AGENT_SELECT = 'SELECT a.*, u.is_superuser FROM agents a JOIN users u ON u.id = a.user_id';
+
+/**
+ * Superusers are testers: every Premium feature is unlocked for them. They can preview the Free experience by
+ * sending `X-View-As-Plan: free` (the app's "View as Free" switch). Nobody else can use that header.
+ */
+export function withEffectivePlan<T extends { plan: 'free' | 'premium'; isSuperuser?: boolean }>(row: T, viewAs?: string | null): T {
+  if (!row.isSuperuser) return row;
+  return { ...row, plan: viewAs === 'free' ? 'free' : 'premium' };
+}
+
+async function readUser(c: Context): Promise<UserRow | null> {
   const header = c.req.header('authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) throw new HttpError(401, 'Not signed in', 'unauthorized');
+  if (!token) return null;
   let userId: string;
   try {
     const { payload } = await jwtVerify(token, secret());
@@ -66,9 +87,42 @@ export const requireAuth: MiddlewareHandler<AuthEnv> = async (c, next) => {
   } catch {
     throw new HttpError(401, 'Session expired, please sign in again', 'unauthorized');
   }
-  const agent = await one<AgentRow>('SELECT * FROM agents WHERE user_id = $1', [userId]);
-  if (!agent) throw new HttpError(401, 'Account not found', 'unauthorized');
-  c.set('agent', agent);
+  const user = await one<UserRow>('SELECT id, email, role, name, phone, is_superuser FROM users WHERE id = $1', [userId]);
+  if (!user) throw new HttpError(401, 'Account not found', 'unauthorized');
+  return user;
+}
+
+/** Any signed-in account (agent or customer). */
+export const requireUser: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  const user = await readUser(c);
+  if (!user) throw new HttpError(401, 'Not signed in', 'unauthorized');
+  c.set('user', user);
+  await next();
+};
+
+/** Signed in if a valid token is sent, otherwise carries on as a guest. A bad token is still rejected. */
+export const optionalUser: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  const user = await readUser(c);
+  if (user) c.set('user', user);
+  await next();
+};
+
+/** Requires `Authorization: Bearer <jwt>` of an AGENT account (works for browsers and native apps alike). */
+export const requireAuth: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  const user = await readUser(c);
+  if (!user) throw new HttpError(401, 'Not signed in', 'unauthorized');
+  const row = await one<AgentRow & { isSuperuser: boolean }>(`${AGENT_SELECT} WHERE a.user_id = $1`, [user.id]);
+  if (!row) throw new HttpError(403, 'This area is for agents', 'agent_only');
+  c.set('user', user);
+  c.set('agent', withEffectivePlan(row, c.req.header('x-view-as-plan')));
+  await next();
+};
+
+export const requireSuperuser: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  const user = await readUser(c);
+  if (!user) throw new HttpError(401, 'Not signed in', 'unauthorized');
+  if (!user.isSuperuser) throw new HttpError(403, 'Superuser only', 'forbidden');
+  c.set('user', user);
   await next();
 };
 

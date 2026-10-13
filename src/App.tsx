@@ -14,6 +14,10 @@ import { BillsPage } from '@/pages/Bills';
 import { BillEditPage } from '@/pages/BillEdit';
 import { SiteEditorPage } from '@/pages/SiteEditor';
 import { PublicAgentPage, PublicPropertyPage } from '@/pages/Public';
+import { BrowsePage } from '@/pages/Browse';
+import { SavedPage } from '@/pages/Saved';
+import { AccountPage } from '@/pages/Account';
+import { AdminPage } from '@/pages/Admin';
 
 // The calendar is the heaviest screen; load it on demand.
 const CalendarPage = lazy(() => import('@/pages/Calendar').then((m) => ({ default: m.CalendarPage })));
@@ -25,6 +29,9 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/browse" element={<BrowsePage />} />
+        <Route path="/saved" element={<SavedPage />} />
+        <Route path="/account" element={<AccountPage />} />
         <Route path="/a/:slug" element={<PublicAgentPage />} />
         <Route path="/a/:slug/p/:id" element={<PublicPropertyPage />} />
 
@@ -41,6 +48,7 @@ export function App() {
           <Route path="bills/:id" element={<BillEditPage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="billing" element={<BillingPage />} />
+          <Route path="admin" element={<AdminPage />} />
           <Route path="more" element={<MorePage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

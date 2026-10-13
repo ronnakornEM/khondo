@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Bath, BedDouble, Building2, Check, ChevronLeft, ChevronRight, Layers, MapPin, Ruler } from 'lucide-react';
-import type { Property, PublicAgentResponse } from '@shared/types';
+import { ArrowLeft, ArrowRight, Bath, BedDouble, Building2, Check, ChevronLeft, ChevronRight, Layers, MapPin, Ruler } from 'lucide-react';
+import type { PublicAgentResponse, PublicPropertyResponse } from '@shared/types';
 import { ApiError, get } from '@/lib/api';
 import { mapsUrl, tEnum } from '@/lib/format';
 import { PriceLabel, RatesNote } from '@/components/Price';
 import { PrefsMenu } from '@/components/PrefsMenu';
-import { AgentSite, Branding, ContactButtons, InquiryForm, onColor } from '@/components/AgentSite';
+import { AgentSite, Branding, ContactButtons, InquiryForm, ListingCard, onColor } from '@/components/AgentSite';
+import { FavButton } from '@/components/FavButton';
 import { PageLoader } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 
@@ -73,12 +74,12 @@ function Gallery({ photos, title }: { photos: string[]; title: string }) {
 export function PublicPropertyPage() {
   const t = useT();
   const { slug, id } = useParams();
-  const q = useQuery({ queryKey: ['public', slug, id], queryFn: () => get<{ agent: PublicAgentResponse['agent']; property: Property }>(`/public/agents/${slug}/properties/${id}`), retry: false });
+  const q = useQuery({ queryKey: ['public', slug, id], queryFn: () => get<PublicPropertyResponse>(`/public/agents/${slug}/properties/${id}`), retry: false });
   useTitle(q.data ? `${q.data.property.title} — ${q.data.agent.displayName}` : '');
   if (q.isLoading) return <PageLoader />;
   if (q.error instanceof ApiError && q.error.status === 404) return <NotFoundPage />;
   if (q.error || !q.data) return <div className="p-10 text-center text-stone-500">{t('Could not load this listing.')}</div>;
-  const { agent, property: p } = q.data;
+  const { agent, property: p, others, othersTotal } = q.data;
   const accent = agent.landing.accent;
   const dark = agent.landing.theme === 'modern';
   const map = mapsUrl(p);
@@ -93,7 +94,7 @@ export function PublicPropertyPage() {
   return (
     <div className={`min-h-dvh ${dark ? 'bg-stone-950 text-stone-100' : 'bg-stone-50 text-stone-900'}`} style={{ '--accent': accent } as React.CSSProperties}>
       <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
-        <div className="flex items-center justify-between gap-3"><Link to={`/a/${agent.slug}`} className="inline-flex items-center gap-1.5 text-sm font-semibold opacity-70 hover:opacity-100"><ArrowLeft className="size-4" /> {agent.displayName}</Link><PrefsMenu tone={dark ? 'dark' : 'light'} /></div>
+        <div className="flex items-center justify-between gap-3"><Link to={`/a/${agent.slug}`} className="inline-flex items-center gap-1.5 text-sm font-semibold opacity-70 hover:opacity-100"><ArrowLeft className="size-4" /> {agent.displayName}</Link><div className="flex items-center gap-2"><Link to="/browse" className="text-sm font-semibold opacity-70 hover:opacity-100">{t('Browse all properties')}</Link><PrefsMenu tone={dark ? 'dark' : 'light'} /></div></div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_380px]">
           <div className="space-y-6">
             <Gallery photos={p.photos} title={p.title} />
@@ -102,7 +103,7 @@ export function PublicPropertyPage() {
                 <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: accent, color: onColor(accent) }}>{p.status === 'available' ? (p.listingType === 'rent' ? t('For rent') : p.listingType === 'sale' ? t('For sale') : t('For sale / rent')) : tEnum(p.status)}</span>
                 <span className="text-sm opacity-60">{tEnum(p.type)}</span>
               </div>
-              <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{p.title}</h1>
+              <div className="mt-2 flex items-start justify-between gap-3"><h1 className="text-2xl font-extrabold sm:text-3xl">{p.title}</h1><FavButton id={p.id} className="shrink-0 border border-stone-200" /></div>
               <div className="mt-1 text-2xl font-extrabold" style={{ color: dark ? undefined : accent }}><PriceLabel p={p} /></div>
               <RatesNote className="mt-1" />
               {(p.address || p.district) && (
@@ -136,9 +137,10 @@ export function PublicPropertyPage() {
             <div className={`rounded-3xl p-5 ${dark ? 'bg-stone-900' : 'border border-stone-200 bg-white shadow-sm'}`}>
               <div className="flex items-center gap-3">
                 {agent.avatarUrl ? <img src={agent.avatarUrl} alt="" className="size-14 rounded-full object-cover" /> : <div className="grid size-14 place-items-center rounded-full text-xl font-extrabold" style={{ background: accent, color: onColor(accent) }}>{agent.displayName.charAt(0).toUpperCase()}</div>}
-                <div><div className="font-extrabold">{agent.displayName}</div><div className="text-sm opacity-60">{agent.headline}</div></div>
+                <div><Link to={`/a/${agent.slug}`} className="font-extrabold hover:underline">{agent.displayName}</Link><div className="text-sm opacity-60">{agent.headline}</div></div>
               </div>
               <ContactButtons agent={agent} accent={accent} className="mt-4" />
+              <Link to={`/a/${agent.slug}`} className="mt-4 flex items-center justify-between rounded-xl border border-current/15 px-3 py-2 text-sm font-semibold opacity-80 hover:opacity-100">{t('View agency page')}<ArrowRight className="size-4" /></Link>
             </div>
             <div>
               <h2 className="mb-2 font-bold">{t('Ask about this property')}</h2>
@@ -146,6 +148,19 @@ export function PublicPropertyPage() {
             </div>
           </aside>
         </div>
+        {others.length > 0 && (
+          <section className="mt-10" aria-labelledby="more-from">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <h2 id="more-from" className="text-xl font-extrabold sm:text-2xl">{t('More from {agent}', { agent: agent.displayName })}</h2>
+              <Link to={`/a/${agent.slug}`} className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: dark ? undefined : accent }}>
+                {othersTotal > others.length ? t('View all {count} properties', { count: othersTotal + 1 }) : t('View agency page')}<ArrowRight className="size-4" />
+              </Link>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {others.map((o) => <ListingCard key={o.id} p={o} href={`/a/${agent.slug}/p/${o.id}`} theme={agent.landing.theme} accent={accent} />)}
+            </div>
+          </section>
+        )}
         <Branding show={agent.showBranding} theme={agent.landing.theme} />
       </div>
     </div>

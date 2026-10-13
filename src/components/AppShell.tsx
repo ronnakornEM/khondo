@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link, Navigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, CalendarDays, Crown, ExternalLink, FileText, Globe, Inbox, LayoutDashboard, LogOut, Menu, Users } from 'lucide-react';
+import { Building2, CalendarDays, Crown, ExternalLink, FileText, FlaskConical, Globe, Inbox, LayoutDashboard, LogOut, Menu, Search, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { get } from '@/lib/api';
 import type { Inquiry } from '@shared/types';
@@ -22,13 +22,15 @@ const TABS = [NAV[0], NAV[1], NAV[6], NAV[3]];
 
 export function AppShell() {
   const t = useT();
-  const { token, me, loading, signOut, isPremium } = useAuth();
+  const { token, me, role, loading, signOut, isPremium, isSuperuser, viewAsFree } = useAuth();
   const loc = useLocation();
   const inquiries = useQuery({ queryKey: ['inquiries'], queryFn: () => get<Inquiry[]>('/inquiries'), enabled: !!me });
   const unread = inquiries.data?.filter((i) => !i.handled).length ?? 0;
 
   if (!token) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
-  if (loading || !me) return <PageLoader />;
+  if (loading) return <PageLoader />;
+  if (role === 'customer') return <Navigate to="/account" replace />;
+  if (!me) return <PageLoader />;
   const agent = me.agent;
 
   return (
@@ -53,6 +55,14 @@ export function AppShell() {
           ))}
         </nav>
         <div className="space-y-2 border-t border-stone-100 pt-3">
+          {isSuperuser && (
+            <NavLink to="/app/admin" className="flex items-center gap-2 rounded-xl bg-violet-100 px-3 py-2 text-sm font-bold text-violet-800">
+              <FlaskConical className="size-4" /> <span className="flex-1">{t('Superuser')}</span><span className="text-[11px] font-semibold">{viewAsFree ? t('as Free') : t('as Premium')}</span>
+            </NavLink>
+          )}
+          <Link to="/browse" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100">
+            <Search className="size-4" /> {t('Browse properties')}
+          </Link>
           <a href={`/a/${agent.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-brand-800 hover:bg-brand-50">
             <ExternalLink className="size-4" /> {t('View my page')}</a>
           <NavLink to="/app/billing" className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-sm">
@@ -97,7 +107,7 @@ export function AppShell() {
 /** Mobile "More" screen */
 export function MorePage() {
   const t = useT();
-  const { me, signOut, isPremium } = useAuth();
+  const { me, signOut, isPremium, isSuperuser, viewAsFree } = useAuth();
   const items = [NAV[4], NAV[5], NAV[2]];
   return (
     <div className="space-y-3">
@@ -116,6 +126,14 @@ export function MorePage() {
           {isPremium ? <PremiumBadge /> : <span className="text-xs font-semibold text-amber-700">{t('Free')}</span>}
         </Link>
       </div>
+      {isSuperuser && (
+        <Link to="/app/admin" className="flex items-center gap-3 rounded-2xl bg-violet-100 px-4 py-3.5 font-bold text-violet-800">
+          <FlaskConical className="size-5" /> <span className="flex-1">{t('Superuser tools')}</span><span className="text-xs font-semibold">{viewAsFree ? t('as Free') : t('as Premium')}</span>
+        </Link>
+      )}
+      <Link to="/browse" className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3.5 font-semibold">
+        <Search className="size-5 text-stone-500" /> {t('Browse properties')}
+      </Link>
       <a href={`/a/${me!.agent.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3.5 font-semibold text-brand-800">
         <ExternalLink className="size-5" /> {t('View my public page')}</a>
       <button onClick={signOut} className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3.5 font-semibold text-stone-600">

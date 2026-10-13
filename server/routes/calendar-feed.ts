@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { query, one } from '../db.js';
 import { HttpError } from '../http.js';
-import type { AgentRow } from '../auth.js';
+import { AGENT_SELECT, withEffectivePlan, type AgentRow } from '../auth.js';
 import { PLANS } from '../../shared/plans.js';
 
 // Premium: subscribe from Google / Apple Calendar. Authenticated by an unguessable token in the URL.
@@ -28,7 +28,8 @@ function fold(line: string) {
 }
 
 feed.get('/calendar/:token/khondo.ics', async (c) => {
-  const agent = await one<AgentRow>('SELECT * FROM agents WHERE calendar_token = $1', [c.req.param('token')]);
+  const row = await one<AgentRow>(`${AGENT_SELECT} WHERE a.calendar_token = $1`, [c.req.param('token')]);
+  const agent = row && withEffectivePlan(row);
   if (!agent || !PLANS[agent.plan].advancedCalendar) throw new HttpError(404, 'Calendar not found');
   const [events, bills] = await Promise.all([
     query<any>('SELECT * FROM events WHERE agent_id = $1 ORDER BY start_at', [agent.id]),

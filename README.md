@@ -78,6 +78,38 @@ npm run cap:ios      # opens Xcode      |   npm run cap:android   # opens Androi
 
 Before release: swap `src/lib/storage.ts` to `@capacitor/preferences` (or secure storage) for the token, add app icons/splash (`@capacitor/assets`), and consider Apple’s in-app-purchase rules for subscriptions bought inside the app.
 
+## Customers, browsing and guest mode
+
+* **Guests can do everything a buyer needs without an account:** browse every live listing from every agent at `/browse` (search, buy/rent, type, bedrooms, price range, sort, paging — filters live in the URL so searches are shareable), open any listing, save favourites with the ❤ (kept in the browser) and send an inquiry to the agent.
+* **Customers can also sign up / log in** (“I’m looking for a property”) to keep favourites on every device, get inquiry forms prefilled, and see their inquiry history with one-tap call / LINE / email to the agent (`/account`). Favourites saved as a guest are merged into the account at sign-in. Customer accounts cannot enter the agent app (`403 agent_only`).
+* **A listing page links the agency:** the agent card links to the agent’s landing page, and “More from {agent}” shows their other live listings with a “View agency page / View all N properties” link. Browse cards link both to the listing and to the agent.
+* Browse honours each agent’s plan limit exactly like the agent’s own page, so over-limit listings of downgraded agents never appear there.
+
+## Testing Premium: superuser
+
+A **superuser** has every Premium feature unlocked regardless of plan, plus an **Admin** page (`/app/admin`) where you can see all agents, switch any agent’s plan by hand, and flip your own account between **Premium** and **Free** (“Test as”) to check upgrade prompts and limits.
+
+```bash
+npm run db:seed                                  # creates admin@khondo.app / admin1234 (superuser) for local dev
+npm run admin:grant -- you@example.com           # make an existing account a superuser (works against any DATABASE_URL)
+npm run admin:grant -- you@example.com --revoke
+```
+
+There is deliberately **no sign-up or API path** to become a superuser — it can only be granted with that script (so nobody can claim it by registering an email first). On production grant it only to your own account.
+
+## Stripe sandbox (test mode)
+
+The whole subscription flow runs against Stripe’s **sandbox** with test keys — no real money.
+
+1. Stripe dashboard → switch to **Test mode** → Developers → API keys → copy the **secret key** (`sk_test_…`).
+2. `.env`: `STRIPE_SECRET_KEY=sk_test_…`
+3. `npm run stripe:setup` – creates the “Khondo Premium” product and a ฿299/month price (lookup key `khondo_premium_monthly`; idempotent). The app finds the price by that key, so `STRIPE_PRICE_ID` is optional. Pass `--webhook https://YOUR_DOMAIN/api/billing/webhook` to also register the webhook on a deployed site (prints `STRIPE_WEBHOOK_SECRET`).
+4. `npm run dev`, sign in as an agent → **Plan & billing** → *Upgrade to Premium*. A yellow banner confirms sandbox mode. Pay with **4242 4242 4242 4242**, any future expiry, any CVC/postcode (declined card: `4000 0000 0000 0002`).
+5. You are redirected back and the app **syncs the subscription straight from Stripe**, so it works locally even without webhooks. For the real webhook path run `stripe listen --forward-to localhost:3001/api/billing/webhook` and put the printed `whsec_…` into `STRIPE_WEBHOOK_SECRET`.
+6. *Manage subscription & invoices* opens the Stripe Customer Portal (enable it in Settings → Billing → Customer portal). Cancelling there downgrades the agent via the webhook (or *Refresh plan from Stripe*).
+
+`npm test` includes an offline test of this flow against a fake Stripe server (`STRIPE_API_BASE` points the code at it), covering checkout, sync, portal, webhook signatures and error handling. Going live later = swap in `sk_live_…`, run `stripe:setup -- --live`, and register the live webhook.
+
 ## Languages & currency
 
 * **Thai / English / 中文** – switch from the 🌐 button (landing pages, auth screens and the app). The browser language is auto-detected; the choice is remembered. Dates use Thai Buddhist Era (พ.ศ.) in Thai.

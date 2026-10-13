@@ -1,4 +1,4 @@
-import { getToken, setToken } from './storage';
+import { getToken, getViewAsFree, setToken } from './storage';
 
 // Same-origin on the web. For the Capacitor build set VITE_API_URL=https://your-app.vercel.app
 const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '') + '/api';
@@ -28,7 +28,10 @@ interface Options {
 export async function api<T = any>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = {};
   const token = getToken();
-  if (token && opts.auth !== false) headers.Authorization = `Bearer ${token}`;
+  if (token && opts.auth !== false) {
+    headers.Authorization = `Bearer ${token}`;
+    if (getViewAsFree()) headers['X-View-As-Plan'] = 'free';
+  }
   if (opts.json !== undefined) headers['Content-Type'] = 'application/json';
   let res: Response;
   try {

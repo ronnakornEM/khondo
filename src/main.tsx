@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/lib/auth';
 import { I18nProvider } from '@/lib/i18n';
 import { CurrencyProvider } from '@/lib/currency';
+import { FavoritesProvider } from '@/lib/favorites';
 import { ApiError } from '@/lib/api';
 import { App } from './App';
 import './index.css';
@@ -26,7 +27,9 @@ createRoot(document.getElementById('root')!).render(
         <I18nProvider>
           <CurrencyProvider>
             <AuthProvider>
-              <App />
+              <FavoritesProvider>
+                <App />
+              </FavoritesProvider>
             </AuthProvider>
           </CurrencyProvider>
         </I18nProvider>

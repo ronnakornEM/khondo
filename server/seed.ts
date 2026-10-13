@@ -4,7 +4,10 @@ import { hashPassword } from './auth.js';
 import { DEFAULT_LANDING } from '../shared/types.js';
 
 // Demo workspace for local development:  npm run db:migrate && npm run db:seed
-// Login: demo@khondo.app / demo1234  (Premium). Public page: /a/nok-property
+// Agent (Premium):  demo@khondo.app / demo1234   → /a/nok-property
+// Superuser:        admin@khondo.app / admin1234  (all Premium features + Admin page)
+// Customer:         buyer@khondo.app / buyer1234
+// Second agency:    isan@khondo.app / isan1234    (Free plan) → /a/isan-homes
 if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') {
   console.error('Refusing to seed a production database.');
   process.exit(1);
@@ -20,7 +23,7 @@ const pool = getPool();
 const q = async (text: string, params: unknown[] = []) => (await pool.query(text, params)).rows;
 
 async function main() {
-  await q("DELETE FROM users WHERE email = 'demo@khondo.app'");
+  await q("DELETE FROM users WHERE email IN ('demo@khondo.app','admin@khondo.app','buyer@khondo.app','isan@khondo.app')");
   const [user] = await q('INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id', ['demo@khondo.app', await hashPassword('demo1234')]);
   const landing = { ...DEFAULT_LANDING, heroSubtitle: 'Condos, houses and land across Khon Kaen — I’ll help you find the right one.', announcement: 'Open house this Saturday · Lake View Residence 10:00–16:00', facebook: 'https://facebook.com', instagram: 'https://instagram.com' };
   const [agent] = await q(
@@ -97,7 +100,36 @@ async function main() {
       [agent.id, ...e],
     );
   }
-  console.log('Seeded. Login: demo@khondo.app / demo1234  ·  Public page: /a/nok-property');
+  // --- Superuser (stored plan is Free on purpose: the superuser flag is what unlocks Premium) ---
+  const [admin] = await q("INSERT INTO users (email, password_hash, name, is_superuser) VALUES ('admin@khondo.app',$1,'Khondo Admin',true) RETURNING id", [await hashPassword('admin1234')]);
+  const [adminAgent] = await q("INSERT INTO agents (user_id, slug, display_name, headline, landing) VALUES ($1,'khondo-admin','Khondo Admin','Superuser test account',$2::jsonb) RETURNING id", [admin.id, JSON.stringify(DEFAULT_LANDING)]);
+  await q("INSERT INTO properties (agent_id,title,type,listing_type,price,bedrooms,bathrooms,area_sqm,district,photos,description) VALUES ($1,'Test listing (superuser)','condo','sale',1500000,1,1,30,'Mueang Khon Kaen',$2::jsonb,'Created by the seed script.')", [adminAgent.id, JSON.stringify([art('#334155', '#94a3b8', 'Test listing')])]);
+
+  // --- A customer (buyer / renter) with a couple of saved properties ---
+  const [buyer] = await q("INSERT INTO users (email, password_hash, role, name, phone) VALUES ('buyer@khondo.app',$1,'customer','Khun Buyer','089-000-1111') RETURNING id", [await hashPassword('buyer1234')]);
+  await q('INSERT INTO favorites (user_id, property_id) VALUES ($1,$2),($1,$3)', [buyer.id, propIds[0], propIds[4]]);
+
+  // --- A second, Free-plan agency so Browse shows several agents ---
+  const [isan] = await q("INSERT INTO users (email, password_hash, name) VALUES ('isan@khondo.app',$1,'Isan Homes') RETURNING id", [await hashPassword('isan1234')]);
+  const [isanAgent] = await q(
+    `INSERT INTO agents (user_id, slug, display_name, headline, bio, phone, line_id, contact_email, landing)
+     VALUES ($1,'isan-homes','Isan Homes','Houses & land across Isan','Family-run agency in Khon Kaen since 2008.','082-555-7777','@isanhomes','hello@isanhomes.example',$2::jsonb) RETURNING id`,
+    [isan.id, JSON.stringify({ ...DEFAULT_LANDING, accent: '#b45309' })],
+  );
+  const isanProps: [string, string, string, number | null, number | null, number | null, string, string[]][] = [
+    ['Family house 3BR, Ban Thum', 'house', 'sale', 3800000, null, 3, 'Mueang Khon Kaen', ['#b45309', '#fcd34d']],
+    ['Rental house near KKU', 'house', 'rent', null, 14000, 2, 'Mueang Khon Kaen', ['#0369a1', '#7dd3fc']],
+    ['Rice-field land 2 rai', 'land', 'sale', 1800000, null, null, 'Ban Phai', ['#4d7c0f', '#bef264']],
+    ['Studio condo, city centre', 'condo', 'both', 1250000, 6500, 1, 'Mueang Khon Kaen', ['#7e22ce', '#e9d5ff']],
+  ];
+  for (const p of isanProps) {
+    await q(
+      `INSERT INTO properties (agent_id,title,type,listing_type,price,rent_price,bedrooms,district,photos,description)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,'Friendly agent, easy viewing.')`,
+      [isanAgent.id, p[0], p[1], p[2], p[3], p[4], p[5], p[6], JSON.stringify([art(p[7][0], p[7][1], p[0].split(',')[0].slice(0, 28))])],
+    );
+  }
+  console.log('Seeded.\n  agent      demo@khondo.app / demo1234   → /a/nok-property (Premium)\n  superuser  admin@khondo.app / admin1234  (Premium unlocked + Admin page)\n  customer   buyer@khondo.app / buyer1234\n  agency #2  isan@khondo.app / isan1234    → /a/isan-homes (Free)\n  browse     /browse');
 }
 
 main()
