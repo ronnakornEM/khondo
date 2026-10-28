@@ -130,6 +130,7 @@ async function main() {
       [isanAgent.id, p[0], p[1], p[2], p[3], p[4], p[5], p[6], JSON.stringify([art(p[7][0], p[7][1], p[0].split(',')[0].slice(0, 28))])],
     );
   }
+  await q('UPDATE users SET email_verified_at = now() WHERE email_verified_at IS NULL'); // demo accounts never need the email step
   console.log('Seeded.\n  agent      demo@khondo.app / demo1234   → /a/nok-property (Premium)\n  superuser  admin@khondo.app / admin1234  (Premium unlocked + Admin page)\n  customer   buyer@khondo.app / buyer1234\n  agency #2  isan@khondo.app / isan1234    → /a/isan-homes (Free)\n  browse     /browse');
 }
 

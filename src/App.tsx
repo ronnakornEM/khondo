@@ -4,6 +4,7 @@ import { AppShell, MorePage } from '@/components/AppShell';
 import { PageLoader } from '@/components/ui';
 import { Home } from '@/pages/Home';
 import { LoginPage, RegisterPage } from '@/pages/Auth';
+import { VerifyEmailPage } from '@/pages/VerifyEmail';
 import { Dashboard } from '@/pages/Dashboard';
 import { PropertiesPage } from '@/pages/Properties';
 import { PropertyEditPage } from '@/pages/PropertyEdit';
@@ -29,6 +30,7 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/browse" element={<BrowsePage />} />
         <Route path="/saved" element={<SavedPage />} />
         <Route path="/account" element={<AccountPage />} />

@@ -1,6 +1,6 @@
-import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, Loader2, X } from 'lucide-react';
+import { Crown, Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { FEATURE_LABELS, type PremiumFeature } from '@shared/plans';
 import { useT } from '@/lib/i18n';
 import { errorText } from '@/lib/errors';
@@ -63,6 +63,30 @@ export function TextInput({ label, hint, error, className, ...rest }: InputHTMLA
     </Field>
   );
 }
+/** Password field with a show / hide toggle (keyboard and screen-reader friendly). */
+export function PasswordInput({ label, hint, error, className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { label: string; hint?: string; error?: string }) {
+  const t = useT();
+  const [show, setShow] = useState(false);
+  return (
+    <Field label={label} hint={hint} error={error} className={className}>
+      {(id) => (
+        <div className="relative">
+          <input id={id} type={show ? 'text' : 'password'} className={cx(fieldCls, 'pr-11')} {...rest} />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            aria-label={show ? t('Hide password') : t('Show password')}
+            aria-pressed={show}
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-xl text-stone-500 hover:text-stone-800 focus-visible:outline-2 focus-visible:outline-brand-600"
+          >
+            {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        </div>
+      )}
+    </Field>
+  );
+}
+
 export function TextArea({ label, hint, className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; hint?: string }) {
   return (
     <Field label={label} hint={hint} className={className}>

@@ -18,6 +18,8 @@ const BY_CODE: Record<string, string> = {
   already_premium: 'You are already on Premium',
   internal: 'Something went wrong on our side',
   not_found: 'Not found',
+  email_not_verified: 'Please verify your email address first',
+  invalid_token: 'This verification link is invalid or has expired',
 };
 
 export function errorText(t: TFn, err: unknown): string {

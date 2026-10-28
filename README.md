@@ -85,6 +85,12 @@ Before release: swap `src/lib/storage.ts` to `@capacitor/preferences` (or secure
 * **A listing page links the agency:** the agent card links to the agent’s landing page, and “More from {agent}” shows their other live listings with a “View agency page / View all N properties” link. Browse cards link both to the listing and to the agent.
 * Browse honours each agent’s plan limit exactly like the agent’s own page, so over-limit listings of downgraded agents never appear there.
 
+## Sign-up: show-password and email verification
+
+* The password fields (sign-up and sign-in) have a **show / hide** toggle.
+* **Email verification:** after sign-up the account exists but has no session. A single-use link (valid 24 h, stored only as a SHA-256 hash) is emailed in the user's language (TH/EN/ZH); opening `/verify-email?token=…` verifies the address and signs the user in. Sign-in is refused (`403 email_not_verified`) until then, with a *Resend email* button (60 s cooldown, also enforced by the API; the resend endpoint always answers `200` so it can't be used to find out which emails have accounts). Re-registering a pending email is rejected, so nobody can take over someone else's half-finished sign-up.
+* **Switching it on:** set `RESEND_API_KEY` (and `EMAIL_FROM` on a domain verified in Resend) in Vercel. **Until a provider is configured, verification is off** and accounts are active immediately, so nothing breaks. For local testing set `EMAIL_VERIFICATION=console` and copy the link from the API log. Accounts that existed before the feature are treated as verified by the migration.
+
 ## Testing Premium: superuser
 
 A **superuser** has every Premium feature unlocked regardless of plan, plus an **Admin** page (`/app/admin`) where you can see all agents, switch any agent’s plan by hand, and flip your own account between **Premium** and **Free** (“Test as”) to check upgrade prompts and limits.
